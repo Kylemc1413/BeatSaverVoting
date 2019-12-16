@@ -1,0 +1,6 @@
+﻿<vertical anchor-min-x="1" anchor-pos-x="-15" vertical-fit="PreferredSize">
+  <text text="Vote" id="voteTitle" align="Center"></text>
+  <page-button interactable="~upInteractable" id="upButton" direction='Up' on-click="up-pressed" pref-width='10'></page-button>
+  <text id='voteText' text="Num" align="Center"></text>
+  <page-button interactable="~downInteractable" id="downButton" direction='Down' on-click="down-pressed" pref-width='10'></page-button>
+</vertical>
