@@ -70,6 +70,13 @@ namespace BeatSaverVoting.UI
             if (!resultsView) return;
             BSMLParser.instance.Parse(BeatSaberMarkupLanguage.Utilities.GetResourceContent(Assembly.GetExecutingAssembly(), "BeatSaverVoting.UI.votingUI.bsml"), resultsView.gameObject, this);
             resultsView.didActivateEvent += ResultsView_didActivateEvent;
+            UnityEngine.UI.Image upArrow = upButton.transform.Find("Arrow")?.GetComponent<UnityEngine.UI.Image>();
+            UnityEngine.UI.Image downArrow = downButton.transform.Find("Arrow")?.GetComponent<UnityEngine.UI.Image>();
+            if(upArrow != null && downArrow != null)
+            {
+                upArrow.color = new Color(0.341f, 0.839f, 0.341f);
+                downArrow.color = new Color(0.984f, 0.282f, 0.305f);
+            }
         }
 
         private void ResultsView_didActivateEvent(bool firstActivation, HMUI.ViewController.ActivationType activationType)
@@ -182,7 +189,7 @@ namespace BeatSaverVoting.UI
 
             UpInteractable = false;
             DownInteractable = false;
-
+            voteText.text = "Voting...";
             Logging.Log.Info($"Getting a ticket...");
 
             var steamId = SteamUser.GetSteamID();
