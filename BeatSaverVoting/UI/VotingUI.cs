@@ -81,7 +81,7 @@ namespace BeatSaverVoting.UI
 
         private void ResultsView_didActivateEvent(bool firstActivation, HMUI.ViewController.ActivationType activationType)
         {
-            Utilities.Logging.Log.Info("Initializing VotingUI");
+            //Utilities.Logging.Log.Info("Initializing VotingUI");
             GetVotesForMap();
         }
 
@@ -190,7 +190,7 @@ namespace BeatSaverVoting.UI
             UpInteractable = false;
             DownInteractable = false;
             voteText.text = "Voting...";
-            Logging.Log.Info($"Getting a ticket...");
+            Logging.Log.Debug($"Getting a ticket...");
 
             var steamId = SteamUser.GetSteamID();
             string authTicketHexString = "";
@@ -241,7 +241,7 @@ namespace BeatSaverVoting.UI
                 }
             }
 
-            Logging.Log.Info("Waiting for Steam callback...");
+            Logging.Log.Debug("Waiting for Steam callback...");
 
             float startTime = Time.time;
             yield return new WaitWhile(() => { return SteamHelper.lastTicketResult != EResult.k_EResultOK && (Time.time - startTime) < 20f; });
@@ -257,7 +257,7 @@ namespace BeatSaverVoting.UI
 
             SteamHelper.lastTicketResult = EResult.k_EResultRevoked;
 
-            Logging.Log.Info($"Voting...");
+            Logging.Log.Debug($"Voting...");
 
             Payload payload = new Payload() { steamID = steamId.m_SteamID.ToString(), ticket = authTicketHexString, direction = (upvote ? 1 : -1) };
             string json = JsonUtility.ToJson(payload);

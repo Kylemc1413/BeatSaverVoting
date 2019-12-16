@@ -56,7 +56,7 @@ namespace BeatSaverVoting
 
         private void BSEvents_menuSceneLoadedFresh()
         {
-            Utilities.Logging.Log.Info("Menu Scene Loaded");
+         //   Utilities.Logging.Log.Info("Menu Scene Loaded");
             UI.VotingUI.instance.Setup();
         }
 
