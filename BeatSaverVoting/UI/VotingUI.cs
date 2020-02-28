@@ -173,11 +173,19 @@ namespace BeatSaverVoting.UI
             //          StartCoroutine(VoteWithAccessToken(upvote));
             //      }
             //else
+            try
+            {
             if (platformHelper == null) platformHelper = Resources.FindObjectsOfTypeAll<VRPlatformHelper>().First();
             if ((platformHelper.vrPlatformSDK == VRPlatformHelper.VRPlatformSDK.OpenVR || Environment.CommandLine.ToLower().Contains("-vrmode oculus") || Environment.CommandLine.ToLower().Contains("fpfc")))
             {
                 StartCoroutine(VoteWithSteamID(upvote));
             }
+            }
+            catch(Exception ex)
+            {
+                Logging.Log.Warn("Failed To Vote For Song");
+            }
+
         }
 
         private IEnumerator VoteWithSteamID(bool upvote)
@@ -215,11 +223,11 @@ namespace BeatSaverVoting.UI
                                 voteText.text = "User does not\nhave license";
                                 yield break;
                             case EUserHasLicenseForAppResult.k_EUserHasLicenseResultHasLicense:
-                                if (SteamHelper.m_GetAuthSessionTicketResponse == null)
-                                    SteamHelper.m_GetAuthSessionTicketResponse = Callback<GetAuthSessionTicketResponse_t>.Create(OnAuthTicketResponse);
+                                if (SteamHelper.Instance.m_GetAuthSessionTicketResponse == null)
+                                    SteamHelper.Instance.m_GetAuthSessionTicketResponse = Callback<GetAuthSessionTicketResponse_t>.Create(OnAuthTicketResponse);
 
-                                SteamHelper.lastTicket = SteamUser.GetAuthSessionTicket(authTicket, 1024, out length);
-                                if (SteamHelper.lastTicket != HAuthTicket.Invalid)
+                                SteamHelper.Instance.lastTicket = SteamUser.GetAuthSessionTicket(authTicket, 1024, out length);
+                                if (SteamHelper.Instance.lastTicket != HAuthTicket.Invalid)
                                 {
                                     Array.Resize(ref authTicket, (int)length);
                                     authTicketHexString = BitConverter.ToString(authTicket).Replace("-", "");
@@ -244,9 +252,9 @@ namespace BeatSaverVoting.UI
             Logging.Log.Debug("Waiting for Steam callback...");
 
             float startTime = Time.time;
-            yield return new WaitWhile(() => { return SteamHelper.lastTicketResult != EResult.k_EResultOK && (Time.time - startTime) < 20f; });
+            yield return new WaitWhile(() => { return SteamHelper.Instance.lastTicketResult != EResult.k_EResultOK && (Time.time - startTime) < 20f; });
 
-            if (SteamHelper.lastTicketResult != EResult.k_EResultOK)
+            if (SteamHelper.Instance.lastTicketResult != EResult.k_EResultOK)
             {
                 Logging.Log.Error($"Auth ticket callback timeout");
                 UpInteractable = true;
@@ -255,7 +263,7 @@ namespace BeatSaverVoting.UI
                 yield break;
             }
 
-            SteamHelper.lastTicketResult = EResult.k_EResultRevoked;
+            SteamHelper.Instance.lastTicketResult = EResult.k_EResultRevoked;
 
             Logging.Log.Debug($"Voting...");
 
@@ -360,9 +368,9 @@ namespace BeatSaverVoting.UI
 
         private void OnAuthTicketResponse(GetAuthSessionTicketResponse_t response)
         {
-            if (SteamHelper.lastTicket == response.m_hAuthTicket)
+            if (SteamHelper.Instance.lastTicket == response.m_hAuthTicket)
             {
-                SteamHelper.lastTicketResult = response.m_eResult;
+                SteamHelper.Instance.lastTicketResult = response.m_eResult;
             }
         }
     }

@@ -7,7 +7,6 @@ using UnityEngine;
 using System.Linq;
 using UnityEngine.UI;
 using System.Reflection;
-using System.Linq;
 using System.Collections;
 using System.Collections.Generic;
 using System.Security.AccessControl;
@@ -28,7 +27,7 @@ namespace BeatSaverVoting.Utilities
             foreach (var mod in IPA.Loader.PluginManager.AllPlugins)
             {
                 //         Logging.Log($"Comparing to: {mod.Metadata.Id}");
-                if (mod.Metadata.Id == ModName)
+                if (mod.Id == ModName)
                     return true;
             }
             return false;

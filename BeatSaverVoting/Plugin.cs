@@ -14,7 +14,8 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 namespace BeatSaverVoting
 {
-    public class Plugin : IBeatSaberPlugin
+    [Plugin(RuntimeOptions.SingleStartInit)]
+    public class Plugin
     {
         public enum VoteType { Upvote, Downvote };
 
@@ -34,6 +35,7 @@ namespace BeatSaverVoting
         internal static string beatsaverURL = "https://beatsaver.com";
         internal static string votedSongsPath = $"{Environment.CurrentDirectory}/UserData/votedSongs.json";
         internal static Dictionary<string, SongVote> votedSongs = new Dictionary<string, SongVote>();
+        [OnStart]
         public void OnApplicationStart()
         {
             BS_Utils.Utilities.BSEvents.menuSceneLoadedFresh += BSEvents_menuSceneLoadedFresh;

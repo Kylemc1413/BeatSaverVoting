@@ -3,14 +3,23 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Steamworks;
 namespace BeatSaverVoting.Utilities
 {
-    public static class SteamHelper
+    public class SteamHelper
     {
-        public static HAuthTicket lastTicket;
-        public static EResult lastTicketResult;
+        private static SteamHelper _instance;
+        public static SteamHelper Instance
+        {
+            get
+            {
+                if (_instance == null)
+                    _instance = new SteamHelper();
+                return _instance;
+            }
+        }
+        public Steamworks.HAuthTicket lastTicket;
+        public Steamworks.EResult lastTicketResult;
 
-        public static Callback<GetAuthSessionTicketResponse_t> m_GetAuthSessionTicketResponse;
+        public Steamworks.Callback<Steamworks.GetAuthSessionTicketResponse_t> m_GetAuthSessionTicketResponse;
     }
 }
