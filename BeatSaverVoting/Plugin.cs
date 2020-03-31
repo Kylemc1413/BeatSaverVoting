@@ -63,7 +63,7 @@ namespace BeatSaverVoting
         }
 
         [Init]
-        public void Init(object thisIsNull, IPALogger pluginLogger)
+        public void Init(IPALogger pluginLogger)
         {
             Utilities.Logging.Log = pluginLogger;
         }
