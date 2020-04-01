@@ -194,6 +194,13 @@ namespace BeatSaverVoting.UI
             {
                 Logging.Log.Error($"SteamManager is not initialized!");
             }
+            void OnAuthTicketResponse(GetAuthSessionTicketResponse_t response)
+            {
+                if (SteamHelper.Instance.lastTicket == response.m_hAuthTicket)
+                {
+                    SteamHelper.Instance.lastTicketResult = response.m_eResult;
+                }
+            };
 
             UpInteractable = false;
             DownInteractable = false;
@@ -225,6 +232,7 @@ namespace BeatSaverVoting.UI
                             case EUserHasLicenseForAppResult.k_EUserHasLicenseResultHasLicense:
                                 if (SteamHelper.Instance.m_GetAuthSessionTicketResponse == null)
                                     SteamHelper.Instance.m_GetAuthSessionTicketResponse = Callback<GetAuthSessionTicketResponse_t>.Create(OnAuthTicketResponse);
+
 
                                 SteamHelper.Instance.lastTicket = SteamUser.GetAuthSessionTicket(authTicket, 1024, out length);
                                 if (SteamHelper.Instance.lastTicket != HAuthTicket.Invalid)
@@ -363,14 +371,6 @@ namespace BeatSaverVoting.UI
                                 Logging.Log.Error("Error: " + voteWWW.downloadHandler.text);
                             }; break;
                     }
-            }
-        }
-
-        private void OnAuthTicketResponse(GetAuthSessionTicketResponse_t response)
-        {
-            if (SteamHelper.Instance.lastTicket == response.m_hAuthTicket)
-            {
-                SteamHelper.Instance.lastTicketResult = response.m_eResult;
             }
         }
     }

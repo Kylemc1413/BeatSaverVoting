@@ -62,8 +62,8 @@ namespace BeatSaverVoting
             UI.VotingUI.instance.Setup();
         }
 
-
-        public void Init(object thisIsNull, IPALogger pluginLogger)
+        [Init]
+        public void Init(IPALogger pluginLogger)
         {
 
             Utilities.Logging.Log = pluginLogger;
