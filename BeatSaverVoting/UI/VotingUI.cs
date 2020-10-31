@@ -13,6 +13,7 @@ using UnityEngine.Networking;
 using BeatSaverVoting.Utilities;
 using Newtonsoft.Json.Linq;
 using Steamworks;
+
 namespace BeatSaverVoting.UI
 {
     public class VotingUI : NotifiableSingleton<VotingUI>
@@ -27,7 +28,7 @@ namespace BeatSaverVoting.UI
         }
 
         internal IBeatmapLevel _lastSong;
-        private VRPlatformHelper platformHelper;
+        private OpenVRHelper openVRHelper;
         private bool _firstVote;
         private Song _lastBeatSaverSong;
         private string userAgent = $"BeatSaverVoting/{Assembly.GetExecutingAssembly().GetName().Version}";
@@ -79,7 +80,7 @@ namespace BeatSaverVoting.UI
             }
         }
 
-        private void ResultsView_didActivateEvent(bool firstActivation, HMUI.ViewController.ActivationType activationType)
+        private void ResultsView_didActivateEvent(bool firstActivation, bool addedToHierarchy, bool screenSystemEnabling)
         {
             //Utilities.Logging.Log.Info("Initializing VotingUI");
             GetVotesForMap();
@@ -136,8 +137,8 @@ namespace BeatSaverVoting.UI
                         _lastBeatSaverSong = new Song((JObject)jNode);
 
                         voteText.text = (_lastBeatSaverSong.upVotes - _lastBeatSaverSong.downVotes).ToString();
-                        if (platformHelper == null) platformHelper = Resources.FindObjectsOfTypeAll<VRPlatformHelper>().First();
-                        bool canVote = (/*PluginConfig.apiAccessToken != PluginConfig.apiTokenPlaceholder ||*/ (platformHelper.vrPlatformSDK == VRPlatformHelper.VRPlatformSDK.OpenVR || Environment.CommandLine.ToLower().Contains("-vrmode oculus") || Environment.CommandLine.ToLower().Contains("fpfc")));
+                        if (openVRHelper == null) openVRHelper = Resources.FindObjectsOfTypeAll<OpenVRHelper>().First();
+                        bool canVote = (/*PluginConfig.apiAccessToken != PluginConfig.apiTokenPlaceholder ||*/ (openVRHelper.vrPlatformSDK == VRPlatformSDK.OpenVR || Environment.CommandLine.ToLower().Contains("-vrmode oculus") || Environment.CommandLine.ToLower().Contains("fpfc")));
 
                         UpInteractable = canVote;
                         DownInteractable = canVote;
@@ -175,8 +176,8 @@ namespace BeatSaverVoting.UI
             //else
             try
             {
-            if (platformHelper == null) platformHelper = Resources.FindObjectsOfTypeAll<VRPlatformHelper>().First();
-            if ((platformHelper.vrPlatformSDK == VRPlatformHelper.VRPlatformSDK.OpenVR || Environment.CommandLine.ToLower().Contains("-vrmode oculus") || Environment.CommandLine.ToLower().Contains("fpfc")))
+            if (openVRHelper == null) openVRHelper = Resources.FindObjectsOfTypeAll<OpenVRHelper>().First();
+            if ((openVRHelper.vrPlatformSDK == VRPlatformSDK.OpenVR || Environment.CommandLine.ToLower().Contains("-vrmode oculus") || Environment.CommandLine.ToLower().Contains("fpfc")))
             {
                 StartCoroutine(VoteWithSteamID(upvote));
             }
