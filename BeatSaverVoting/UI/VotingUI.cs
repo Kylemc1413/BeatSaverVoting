@@ -1,37 +1,20 @@
 ﻿using BeatSaberMarkupLanguage;
 using BeatSaberMarkupLanguage.Attributes;
 using BeatSaberMarkupLanguage.Components;
-using BS_Utils.Utilities;
-using System.Linq;
-using System.Collections.Generic;
-using System.Collections;
-using System.Reflection;
-using UnityEngine;
-using TMPro;
-using System;
-using UnityEngine.Networking;
 using BeatSaverVoting.Utilities;
-using Newtonsoft.Json.Linq;
 using Steamworks;
+using System;
+using System.Collections;
+using System.Linq;
+using System.Reflection;
+using System.Threading.Tasks;
+using TMPro;
+using UnityEngine;
 
 namespace BeatSaverVoting.UI
 {
     public class VotingUI : NotifiableSingleton<VotingUI>
     {
-
-        [Serializable]
-        private struct Payload
-        {
-            public string steamID;
-            public string ticket;
-            public int direction;
-        }
-
-        internal IBeatmapLevel _lastSong;
-        private OpenVRHelper openVRHelper;
-        private bool _firstVote;
-        private Song _lastBeatSaverSong;
-        private string userAgent = $"BeatSaverVoting/{Assembly.GetExecutingAssembly().GetName().Version}";
         [UIComponent("voteTitle")]
         public TextMeshProUGUI voteTitle;
         [UIComponent("voteText")]
@@ -63,17 +46,27 @@ namespace BeatSaverVoting.UI
             }
         }
 
-
+        private static BeatSaverSharp.BeatSaver m_BeatSaberClient = null;
+        internal IBeatmapLevel _lastSong;
+        private OpenVRHelper openVRHelper;
+        private BeatSaverSharp.Beatmap _lastBeatSaverSong;
 
         internal void Setup()
         {
             var resultsView = Resources.FindObjectsOfTypeAll<ResultsViewController>().FirstOrDefault();
-            if (!resultsView) return;
+            if (!resultsView)
+                return;
+
+            if (m_BeatSaberClient == null)
+                m_BeatSaberClient = new BeatSaverSharp.BeatSaver();
+
             BSMLParser.instance.Parse(BeatSaberMarkupLanguage.Utilities.GetResourceContent(Assembly.GetExecutingAssembly(), "BeatSaverVoting.UI.votingUI.bsml"), resultsView.gameObject, this);
             resultsView.didActivateEvent += ResultsView_didActivateEvent;
+
             UnityEngine.UI.Image upArrow = upButton.transform.Find("Arrow")?.GetComponent<UnityEngine.UI.Image>();
             UnityEngine.UI.Image downArrow = downButton.transform.Find("Arrow")?.GetComponent<UnityEngine.UI.Image>();
-            if(upArrow != null && downArrow != null)
+
+            if (upArrow != null && downArrow != null)
             {
                 upArrow.color = new Color(0.341f, 0.839f, 0.341f);
                 downArrow.color = new Color(0.984f, 0.282f, 0.305f);
@@ -109,71 +102,50 @@ namespace BeatSaverVoting.UI
             }
             voteText.text = "Loading...";
             StartCoroutine(GetRatingForSong(_lastSong));
-
-
         }
 
         private IEnumerator GetRatingForSong(IBeatmapLevel level)
         {
-            //     Plugin.log.Info($"{PluginConfig.beatsaverURL}/api/maps/by-hash/{SongCore.Utilities.Hashing.GetCustomLevelHash(level as CustomPreviewBeatmapLevel).ToLower()}");
-            UnityWebRequest www = UnityWebRequest.Get($"{Plugin.beatsaverURL}/api/maps/by-hash/{SongCore.Utilities.Hashing.GetCustomLevelHash(level as CustomPreviewBeatmapLevel).ToLower()}");
-            www.SetRequestHeader("user-agent", userAgent);
+            var hash = SongCore.Utilities.Hashing.GetCustomLevelHash(level as CustomPreviewBeatmapLevel).ToLower();
 
-            yield return www.SendWebRequest();
+            /// disable buttons until populate task is done
+            if (openVRHelper == null) openVRHelper = Resources.FindObjectsOfTypeAll<OpenVRHelper>().First();
+            bool canVote = (/*PluginConfig.apiAccessToken != PluginConfig.apiTokenPlaceholder ||*/ (openVRHelper.vrPlatformSDK == VRPlatformSDK.OpenVR || Environment.CommandLine.ToLower().Contains("-vrmode oculus") || Environment.CommandLine.ToLower().Contains("fpfc")));
+            UpInteractable = canVote;
+            DownInteractable = canVote;
 
-            if (www.isNetworkError || www.isHttpError)
+            /// prepare partial beatmap
+            m_BeatSaberClient.Hash(hash).ContinueWith((p_TaskResult) =>
             {
-                Logging.Log.Error($"Unable to connect to {Plugin.beatsaverURL}! " + (www.isNetworkError ? $"Network error: {www.error}" : (www.isHttpError ? $"HTTP error: {www.error}" : "Unknown error")));
-            }
-            else
-            {
-                try
+                if (p_TaskResult.Status != System.Threading.Tasks.TaskStatus.RanToCompletion)
                 {
-                    _firstVote = true;
-                    JObject jNode = JObject.Parse(www.downloadHandler.text);
+                    Logging.Log.Error($"Failed to get beatmap for hash {hash} task status {p_TaskResult.Status}");
+                    return;
+                }
 
-                    if (jNode.Children().Count() > 0)
+                _lastBeatSaverSong = p_TaskResult.Result;
+
+                HMMainThreadDispatcher.instance.Enqueue(() =>
+                {
+                    voteText.text = (_lastBeatSaverSong.Stats.UpVotes - _lastBeatSaverSong.Stats.DownVotes).ToString();
+                    Logging.Log.Debug("SET VOTESSSS " + voteText.text);
+                    if (Plugin.votedSongs.TryGetValue(_lastBeatSaverSong.Hash.ToLower(), out var vote))
                     {
-                        _lastBeatSaverSong = new Song((JObject)jNode);
-
-                        voteText.text = (_lastBeatSaverSong.upVotes - _lastBeatSaverSong.downVotes).ToString();
-                        if (openVRHelper == null) openVRHelper = Resources.FindObjectsOfTypeAll<OpenVRHelper>().First();
-                        bool canVote = (/*PluginConfig.apiAccessToken != PluginConfig.apiTokenPlaceholder ||*/ (openVRHelper.vrPlatformSDK == VRPlatformSDK.OpenVR || Environment.CommandLine.ToLower().Contains("-vrmode oculus") || Environment.CommandLine.ToLower().Contains("fpfc")));
-
-                        UpInteractable = canVote;
-                        DownInteractable = canVote;
-
-                        //           _reviewButton.interactable = true;
-                        string lastLevelHash = SongCore.Utilities.Hashing.GetCustomLevelHash(_lastSong as CustomPreviewBeatmapLevel).ToLower();
-                        if (Plugin.votedSongs.ContainsKey(lastLevelHash))
+                        switch (vote.voteType)
                         {
-                            switch (Plugin.votedSongs[lastLevelHash].voteType)
-                            {
-                                case Plugin.VoteType.Upvote: { UpInteractable = false; } break;
-                                case Plugin.VoteType.Downvote: { DownInteractable = false; } break;
-                            }
+                            case Plugin.VoteType.Upvote:    { UpInteractable    = false; } break;
+                            case Plugin.VoteType.Downvote:  { DownInteractable  = false; } break;
                         }
                     }
-                    else
-                    {
-                        Logging.Log.Error("Song doesn't exist on BeatSaver!");
-                    }
-                }
-                catch (Exception e)
-                {
-                    Logging.Log.Critical("Unable to get song rating! Excpetion: " + e);
-                }
-            }
+                });
+            });
+
+            yield return null;
         }
 
 
         private void VoteForSong(bool upvote)
         {
-            //      if(PluginConfig.apiAccessToken != PluginConfig.apiTokenPlaceholder && !string.IsNullOrWhiteSpace(PluginConfig.apiAccessToken))
-            //      {
-            //          StartCoroutine(VoteWithAccessToken(upvote));
-            //      }
-            //else
             try
             {
                 if (openVRHelper == null)
@@ -196,15 +168,20 @@ namespace BeatSaverVoting.UI
             if (!SteamManager.Initialized)
             {
                 Logging.Log.Error($"SteamManager is not initialized!");
+                yield break;
             }
 
+            if (_lastBeatSaverSong == null)
+                yield break;
+
+            /// disable until vote result
             UpInteractable = false;
             DownInteractable = false;
             voteText.text = "Voting...";
+
             Logging.Log.Debug($"Getting a ticket...");
 
             var steamId = SteamUser.GetSteamID();
-            string authTicketHexString = "";
 
             byte[] authTicket = new byte[1024];
             var authTicketResult = SteamUser.GetAuthSessionTicket(authTicket, 1024, out var length);
@@ -222,10 +199,9 @@ namespace BeatSaverVoting.UI
                         switch (result)
                         {
                             case EUserHasLicenseForAppResult.k_EUserHasLicenseResultDoesNotHaveLicense:
-                                UpInteractable = false;
-                                DownInteractable = false;
                                 voteText.text = "User does not\nhave license";
                                 yield break;
+
                             case EUserHasLicenseForAppResult.k_EUserHasLicenseResultHasLicense:
                                 if (SteamHelper.Instance.m_GetAuthSessionTicketResponse == null)
                                 {
@@ -239,22 +215,16 @@ namespace BeatSaverVoting.UI
 
                                 SteamHelper.Instance.lastTicket = SteamUser.GetAuthSessionTicket(authTicket, 1024, out length);
                                 if (SteamHelper.Instance.lastTicket != HAuthTicket.Invalid)
-                                {
                                     Array.Resize(ref authTicket, (int)length);
-                                    authTicketHexString = BitConverter.ToString(authTicket).Replace("-", "");
-                                }
 
                                 break;
                             case EUserHasLicenseForAppResult.k_EUserHasLicenseResultNoAuth:
-                                UpInteractable = false;
-                                DownInteractable = false;
                                 voteText.text = "User is not\nauthenticated";
                                 yield break;
                         }
                         break;
+
                     default:
-                        UpInteractable = false;
-                        DownInteractable = false;
                         voteText.text = "Auth\nfailed";
                         yield break;
                 }
@@ -268,9 +238,9 @@ namespace BeatSaverVoting.UI
             if (SteamHelper.Instance.lastTicketResult != EResult.k_EResultOK)
             {
                 Logging.Log.Error($"Auth ticket callback timeout");
-                UpInteractable = true;
+                UpInteractable   = true;
                 DownInteractable = true;
-                voteText.text = "Callback\ntimeout";
+                voteText.text    = "Callback\ntimeout";
                 yield break;
             }
 
@@ -278,103 +248,63 @@ namespace BeatSaverVoting.UI
 
             Logging.Log.Debug($"Voting...");
 
-            Payload payload = new Payload() { steamID = steamId.m_SteamID.ToString(), ticket = authTicketHexString, direction = (upvote ? 1 : -1) };
-            string json = JsonUtility.ToJson(payload);
-           // Logging.Log.Info(json);
-            UnityWebRequest voteWWW = UnityWebRequest.Post($"{Plugin.beatsaverURL}/api/vote/steam/{_lastBeatSaverSong.key}", json);
-
-         //   Logging.Log.Info($"{Plugin.beatsaverURL}/api/vote/steam/{_lastBeatSaverSong.hash}");
-         //   Logging.Log.Info($"{Plugin.beatsaverURL}/api/vote/steam/{_lastBeatSaverSong.key}");
-
-            byte[] jsonBytes = new System.Text.UTF8Encoding().GetBytes(json);
-            voteWWW.uploadHandler = new UploadHandlerRaw(jsonBytes);
-            voteWWW.SetRequestHeader("Content-Type", "application/json");
-            voteWWW.SetRequestHeader("user-agent", userAgent);
-            voteWWW.timeout = 30;
-            yield return voteWWW.SendWebRequest();
-
-            if (voteWWW.isNetworkError)
-            {
-                Logging.Log.Error(voteWWW.error);
-                voteText.text = voteWWW.error;
-            }
-            else
-            {
-                if (!_firstVote)
+            Action<Task<bool>> voteCallback = (result) => {
+                if (result.Status != System.Threading.Tasks.TaskStatus.RanToCompletion
+                   || result.Exception != null)
                 {
-                    yield return new WaitForSecondsRealtime(2f);
+                    Logging.Log.Error($"Failed to vote beatmap for hash {_lastBeatSaverSong.Hash}");
+                    if (result.Exception != null)
+                        Logging.Log.Error(result.Exception);
+
+                    HMMainThreadDispatcher.instance.Enqueue(() =>
+                    {
+                        if (result.Exception.InnerException is BeatSaverSharp.Exceptions.InvalidSteamIDException)
+                            voteText.text = "Invalid\nsession";
+                        if (result.Exception.InnerException is BeatSaverSharp.Exceptions.InvalidTicketException)
+                            voteText.text = "Invalid\nauth ticket";
+                        else
+                            voteText.text = "Network\nerror";
+                    });
+                    return;
                 }
 
-                _firstVote = false;
-
-                if (voteWWW.responseCode >= 200 && voteWWW.responseCode <= 299)
+                HMMainThreadDispatcher.instance.Enqueue(() =>
                 {
-                    //              Plugin.log.Info(voteWWW.downloadHandler.text);
-                    JObject node = JObject.Parse(voteWWW.downloadHandler.text);
-                    //         Plugin.log.Info(((int)node["stats"]["upVotes"]).ToString() + " -- " + ((int)(node["stats"]["downVotes"])).ToString());
-                    voteText.text = (((int)node["stats"]["upVotes"]) - ((int)node["stats"]["downVotes"])).ToString();
-
-                    if (upvote)
+                    if (result.Result)
                     {
-                        UpInteractable = false;
-                        DownInteractable = true;
+                        voteText.text = (_lastBeatSaverSong.Stats.UpVotes - _lastBeatSaverSong.Stats.DownVotes).ToString();
+
+                        UpInteractable   = !upvote;
+                        DownInteractable = upvote;
+
+                        var voteType = upvote ? Plugin.VoteType.Upvote : Plugin.VoteType.Downvote;
+                        if (Plugin.votedSongs.TryGetValue(_lastBeatSaverSong.Hash.ToLower(), out var vote))
+                        {
+                            if (vote.voteType != voteType)
+                            {
+                                vote.voteType = voteType;
+                                Plugin.WriteVotes();
+                            }
+                        }
+                        else
+                        {
+                            Plugin.votedSongs.Add(_lastBeatSaverSong.Hash.ToLower(), new Plugin.SongVote(_lastBeatSaverSong.Key, voteType));
+                            Plugin.WriteVotes();
+                        }
                     }
                     else
                     {
-                        DownInteractable = false;
-                        UpInteractable = true;
+                        UpInteractable      = true;
+                        DownInteractable    = true;
+                        voteText.text       = "Error\n";
                     }
-                    string lastlevelHash = SongCore.Utilities.Hashing.GetCustomLevelHash(_lastSong as CustomPreviewBeatmapLevel).ToLower();
-                    if (!Plugin.votedSongs.ContainsKey(lastlevelHash))
-                    {
-                        Plugin.votedSongs.Add(lastlevelHash, new Plugin.SongVote(_lastBeatSaverSong.key, upvote ? Plugin.VoteType.Upvote : Plugin.VoteType.Downvote));
-                        Plugin.WriteVotes();
-                    }
-                    else if (Plugin.votedSongs[lastlevelHash].voteType != (upvote ? Plugin.VoteType.Upvote : Plugin.VoteType.Downvote))
-                    {
-                        Plugin.votedSongs[lastlevelHash] = new Plugin.SongVote(_lastBeatSaverSong.key, upvote ? Plugin.VoteType.Upvote : Plugin.VoteType.Downvote);
-                        Plugin.WriteVotes();
-                    }
-                }
-                else switch (voteWWW.responseCode)
-                {
-                    case 500:
-                        {
-                            UpInteractable = false;
-                            DownInteractable = false;
-                            voteText.text = "Server \nerror";
-                            Logging.Log.Error("Error: " + voteWWW.downloadHandler.text);
-                        }; break;
-                    case 401:
-                        {
-                            UpInteractable = false;
-                            DownInteractable = false;
-                            voteText.text = "Invalid\nauth ticket";
-                            Logging.Log.Error("Error: " + voteWWW.downloadHandler.text);
-                        }; break;
-                    case 404:
-                        {
-                            UpInteractable = false;
-                            DownInteractable = false;
-                            voteText.text = "Beatmap not\found";
-                            Logging.Log.Error("Error: " + voteWWW.downloadHandler.text);
-                        }; break;
-                    case 400:
-                        {
-                            UpInteractable = false;
-                            DownInteractable = false;
-                            voteText.text = "Bad\nrequest";
-                            Logging.Log.Error("Error: " + voteWWW.downloadHandler.text);
-                        }; break;
-                    default:
-                        {
-                            UpInteractable = true;
-                            DownInteractable = true;
-                            voteText.text = "Error\n" + voteWWW.responseCode;
-                            Logging.Log.Error("Error: " + voteWWW.downloadHandler.text);
-                        }; break;
-                }
-            }
+                });
+            };
+
+            if (upvote)
+                _lastBeatSaverSong.VoteUp(steamId.m_SteamID.ToString(), authTicket).ContinueWith(voteCallback);
+            else
+                _lastBeatSaverSong.VoteDown(steamId.m_SteamID.ToString(), authTicket).ContinueWith(voteCallback);
         }
     }
 }

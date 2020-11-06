@@ -17,7 +17,7 @@ namespace BeatSaverVoting
         internal static Dictionary<string, SongVote> votedSongs = new Dictionary<string, SongVote>();
 
         public enum VoteType { Upvote, Downvote };
-        public struct SongVote
+        public class SongVote
         {
             public string key;
             [JsonConverter(typeof(StringEnumConverter))]
