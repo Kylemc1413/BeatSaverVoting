@@ -61,7 +61,7 @@ namespace BeatSaverVoting.UI
                 downInteractable = value;
                 NotifyPropertyChanged();
             }
-        } 
+        }
 
 
 
@@ -176,11 +176,13 @@ namespace BeatSaverVoting.UI
             //else
             try
             {
-            if (openVRHelper == null) openVRHelper = Resources.FindObjectsOfTypeAll<OpenVRHelper>().First();
-            if ((openVRHelper.vrPlatformSDK == VRPlatformSDK.OpenVR || Environment.CommandLine.ToLower().Contains("-vrmode oculus") || Environment.CommandLine.ToLower().Contains("fpfc")))
-            {
-                StartCoroutine(VoteWithSteamID(upvote));
-            }
+                if (openVRHelper == null)
+                    openVRHelper = Resources.FindObjectsOfTypeAll<OpenVRHelper>().First();
+
+                if ((openVRHelper.vrPlatformSDK == VRPlatformSDK.OpenVR || Environment.CommandLine.ToLower().Contains("-vrmode oculus") || Environment.CommandLine.ToLower().Contains("fpfc")))
+                {
+                    StartCoroutine(VoteWithSteamID(upvote));
+                }
             }
             catch(Exception ex)
             {
@@ -195,13 +197,6 @@ namespace BeatSaverVoting.UI
             {
                 Logging.Log.Error($"SteamManager is not initialized!");
             }
-            void OnAuthTicketResponse(GetAuthSessionTicketResponse_t response)
-            {
-                if (SteamHelper.Instance.lastTicket == response.m_hAuthTicket)
-                {
-                    SteamHelper.Instance.lastTicketResult = response.m_eResult;
-                }
-            };
 
             UpInteractable = false;
             DownInteractable = false;
@@ -213,6 +208,7 @@ namespace BeatSaverVoting.UI
 
             byte[] authTicket = new byte[1024];
             var authTicketResult = SteamUser.GetAuthSessionTicket(authTicket, 1024, out var length);
+
             if (authTicketResult != HAuthTicket.Invalid)
             {
                 var beginAuthSessionResult = SteamUser.BeginAuthSession(authTicket, (int)length, steamId);
@@ -232,8 +228,14 @@ namespace BeatSaverVoting.UI
                                 yield break;
                             case EUserHasLicenseForAppResult.k_EUserHasLicenseResultHasLicense:
                                 if (SteamHelper.Instance.m_GetAuthSessionTicketResponse == null)
-                                    SteamHelper.Instance.m_GetAuthSessionTicketResponse = Callback<GetAuthSessionTicketResponse_t>.Create(OnAuthTicketResponse);
+                                {
+                                    SteamHelper.Instance.m_GetAuthSessionTicketResponse = Callback<GetAuthSessionTicketResponse_t>.Create((GetAuthSessionTicketResponse_t response) =>
+                                    {
+                                        if (SteamHelper.Instance.lastTicket == response.m_hAuthTicket)
+                                            SteamHelper.Instance.lastTicketResult = response.m_eResult;
+                                    });
 
+                                }
 
                                 SteamHelper.Instance.lastTicket = SteamUser.GetAuthSessionTicket(authTicket, 1024, out length);
                                 if (SteamHelper.Instance.lastTicket != HAuthTicket.Invalid)
@@ -335,43 +337,43 @@ namespace BeatSaverVoting.UI
                     }
                 }
                 else switch (voteWWW.responseCode)
-                    {
-                        case 500:
-                            {
-                                UpInteractable = false;
-                                DownInteractable = false;
-                                voteText.text = "Server \nerror";
-                                Logging.Log.Error("Error: " + voteWWW.downloadHandler.text);
-                            }; break;
-                        case 401:
-                            {
-                                UpInteractable = false;
-                                DownInteractable = false;
-                                voteText.text = "Invalid\nauth ticket";
-                                Logging.Log.Error("Error: " + voteWWW.downloadHandler.text);
-                            }; break;
-                        case 404:
-                            {
-                                UpInteractable = false;
-                                DownInteractable = false;
-                                voteText.text = "Beatmap not\found";
-                                Logging.Log.Error("Error: " + voteWWW.downloadHandler.text);
-                            }; break;
-                        case 400:
-                            {
-                                UpInteractable = false;
-                                DownInteractable = false;
-                                voteText.text = "Bad\nrequest";
-                                Logging.Log.Error("Error: " + voteWWW.downloadHandler.text);
-                            }; break;
-                        default:
-                            {
-                                UpInteractable = true;
-                                DownInteractable = true;
-                                voteText.text = "Error\n" + voteWWW.responseCode;
-                                Logging.Log.Error("Error: " + voteWWW.downloadHandler.text);
-                            }; break;
-                    }
+                {
+                    case 500:
+                        {
+                            UpInteractable = false;
+                            DownInteractable = false;
+                            voteText.text = "Server \nerror";
+                            Logging.Log.Error("Error: " + voteWWW.downloadHandler.text);
+                        }; break;
+                    case 401:
+                        {
+                            UpInteractable = false;
+                            DownInteractable = false;
+                            voteText.text = "Invalid\nauth ticket";
+                            Logging.Log.Error("Error: " + voteWWW.downloadHandler.text);
+                        }; break;
+                    case 404:
+                        {
+                            UpInteractable = false;
+                            DownInteractable = false;
+                            voteText.text = "Beatmap not\found";
+                            Logging.Log.Error("Error: " + voteWWW.downloadHandler.text);
+                        }; break;
+                    case 400:
+                        {
+                            UpInteractable = false;
+                            DownInteractable = false;
+                            voteText.text = "Bad\nrequest";
+                            Logging.Log.Error("Error: " + voteWWW.downloadHandler.text);
+                        }; break;
+                    default:
+                        {
+                            UpInteractable = true;
+                            DownInteractable = true;
+                            voteText.text = "Error\n" + voteWWW.responseCode;
+                            Logging.Log.Error("Error: " + voteWWW.downloadHandler.text);
+                        }; break;
+                }
             }
         }
     }

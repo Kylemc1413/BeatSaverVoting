@@ -157,9 +157,7 @@
     <Compile Include="UI\VotingUI.cs" />
     <Compile Include="Utilities\BeatSaverAPIResult.cs" />
     <Compile Include="Utilities\Logging.cs" />
-    <Compile Include="Utilities\ReflectionUtil.cs" />
     <Compile Include="Utilities\SteamHelper.cs" />
-    <Compile Include="Utilities\Utils.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="manifest.json" />
