@@ -13,6 +13,8 @@ using UnityEngine.Networking;
 using BeatSaverVoting.Utilities;
 using Newtonsoft.Json.Linq;
 using Steamworks;
+using HMUI;
+using UnityEngine.UI;
 
 namespace BeatSaverVoting.UI
 {
@@ -37,9 +39,9 @@ namespace BeatSaverVoting.UI
         [UIComponent("voteText")]
         public TextMeshProUGUI voteText;
         [UIComponent("upButton")]
-        public Transform upButton;
+        public PageButton upButton;
         [UIComponent("downButton")]
-        public Transform downButton;
+        public PageButton downButton;
         private bool upInteractable = true;
         [UIValue("upInteractable")]
         public bool UpInteractable
@@ -47,6 +49,7 @@ namespace BeatSaverVoting.UI
             get => upInteractable;
             set
             {
+                upButton.GetComponent<Button>().interactable = value;
                 upInteractable = value;
                 NotifyPropertyChanged();
             }
@@ -58,6 +61,7 @@ namespace BeatSaverVoting.UI
             get => downInteractable;
             set
             {
+                downButton.GetComponent<Button>().interactable = value;
                 downInteractable = value;
                 NotifyPropertyChanged();
             }
@@ -71,18 +75,24 @@ namespace BeatSaverVoting.UI
             if (!resultsView) return;
             BSMLParser.instance.Parse(BeatSaberMarkupLanguage.Utilities.GetResourceContent(Assembly.GetExecutingAssembly(), "BeatSaverVoting.UI.votingUI.bsml"), resultsView.gameObject, this);
             resultsView.didActivateEvent += ResultsView_didActivateEvent;
-            UnityEngine.UI.Image upArrow = upButton.transform.Find("Arrow")?.GetComponent<UnityEngine.UI.Image>();
-            UnityEngine.UI.Image downArrow = downButton.transform.Find("Arrow")?.GetComponent<UnityEngine.UI.Image>();
+
+        }
+        internal IEnumerator DelayedColorButtons()
+        {
+            yield return new WaitUntil(() => upButton.gameObject.activeInHierarchy);
+            ImageView upArrow = upButton.GetComponentInChildren<ImageView>();
+            ImageView downArrow = downButton.GetComponentInChildren<ImageView>();
             if(upArrow != null && downArrow != null)
             {
                 upArrow.color = new Color(0.341f, 0.839f, 0.341f);
                 downArrow.color = new Color(0.984f, 0.282f, 0.305f);
             }
-        }
 
+        }
         private void ResultsView_didActivateEvent(bool firstActivation, bool addedToHierarchy, bool screenSystemEnabling)
         {
             //Utilities.Logging.Log.Info("Initializing VotingUI");
+            StartCoroutine(DelayedColorButtons());
             GetVotesForMap();
         }
 
@@ -99,14 +109,17 @@ namespace BeatSaverVoting.UI
 
         private void GetVotesForMap()
         {
-            if(!(_lastSong is CustomPreviewBeatmapLevel))
+            if(!(_lastSong is CustomPreviewBeatmapLevel) || _lastSong == null)
             {
                 downButton.gameObject.SetActive(false);
                 upButton.gameObject.SetActive(false);
                 voteText.text = "";
-                voteTitle.text = "";
+                voteTitle.gameObject.SetActive(false);
                 return;
             }
+            downButton.gameObject.SetActive(true);
+            upButton.gameObject.SetActive(true);
+            voteTitle.gameObject.SetActive(true);
             voteText.text = "Loading...";
             StartCoroutine(GetRatingForSong(_lastSong));
 

@@ -39,7 +39,7 @@ namespace BeatSaverVoting
         public void OnApplicationStart()
         {
             BS_Utils.Utilities.BSEvents.lateMenuSceneLoadedFresh += BSEvents_menuSceneLoadedFresh;
-            BS_Utils.Utilities.BSEvents.gameSceneLoaded += BSEvents_gameSceneLoaded1;
+            BS_Utils.Utilities.BSEvents.gameSceneLoaded += BSEvents_gameSceneLoaded;
 
             if (!File.Exists(votedSongsPath))
             {
@@ -51,7 +51,7 @@ namespace BeatSaverVoting
             }
         }
 
-        private void BSEvents_gameSceneLoaded1()
+        private void BSEvents_gameSceneLoaded()
         {
             UI.VotingUI.instance._lastSong = BS_Utils.Plugin.LevelData.GameplayCoreSceneSetupData.difficultyBeatmap.level;
         }
